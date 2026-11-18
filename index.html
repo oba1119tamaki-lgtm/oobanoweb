@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>塾・スケジュール＆生徒個人カルテ管理</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --border: #dcdfe6;
+      --text: #2c3e50;
+      --primary: #2563eb;
+      
+      /* 前ゴマ（赤系） */
+      --mae-bg: #fef2f2;
+      --mae-border: #f87171;
+      --mae-text: #b91c1c;
+
+      /* 後ゴマ（青系） */
+      --ato-bg: #eff6ff;
+      --ato-border: #60a5fa;
+      --ato-text: #1d4ed8;
+
+      /* 日曜枠・その他（オレンジ系） */
+      --other-bg: #ffedd5;
+      --other-border: #fb923c;
+      --other-text: #c2410c;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nav-btn {
+      background: #334155;
+      color: #e2e8f0;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    .nav-btn.active {
+      background: var(--primary);
+      color: #fff;
+    }
+    .reset-btn {
+      background: #475569;
+      color: #cbd5e1;
+      border: 1px solid #64748b;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .reset-btn:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 240px 1fr 190px 140px;
+      gap: 12px;
+      align-items: end;
+    }
+    @media (max-width: 850px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    label {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #475569;
+    }
+    input, select, textarea {
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      width: 100%;
+    }
+    .btn {
+      padding: 9px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.95rem;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 4px 8px; font-size: 0.8rem; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 0.85rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: bold;
+    }
+
+    /* コマ別バッジ色 */
+    .badge-mae { background: var(--mae-bg); color: var(--mae-text); border: 1px solid var(--mae-border); }
+    .badge-ato { background: var(--ato-bg); color: var(--ato-text); border: 1px solid var(--ato-border); }
+    .badge-other { background: var(--other-bg); color: var(--other-text); border: 1px solid var(--other-border); }
+
+    /* カレンダー */
+    .cal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-top: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+    }
+    .cal-day-name {
+      background: #f8fafc;
+      text-align: center;
+      font-weight: bold;
+      padding: 8px 4px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .cal-day-name.sun { color: #dc2626; }
+    .cal-day-name.sat { color: #2563eb; }
+
+    .cal-cell {
+      min-height: 125px;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+    .cal-cell.other-month { background: #f8fafc; color: #94a3b8; }
+    .cal-cell.sunday { background: #fffbeb; }
+    .cal-cell.has-date-btn:hover {
+      background: #f1f5f9;
+      cursor: pointer;
+    }
+
+    .cal-date-num {
+      font-weight: bold;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .detail-hint-badge {
+      font-size: 0.65rem;
+      background: #e2e8f0;
+      color: #475569;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: normal;
+    }
+    .sun-tag {
+      font-size: 0.7rem;
+      background: #fef3c7;
+      color: #b45309;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .event-chip {
+      font-size: 0.78rem;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+    }
+    .event-chip .del-ev {
+      font-weight: normal;
+      opacity: 0.7;
+      padding: 0 2px;
+      cursor: pointer;
+    }
+    .event-chip .del-ev:hover { opacity: 1; color: #ef4444; }
+
+    /* 生徒個人ページレイアウト */
+    .student-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .student-layout { grid-template-columns: 1fr; }
+    }
+    .student-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .student-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .student-list-item.active {
+      border-color: var(--primary);
+      background: #eff6ff;
+      font-weight: bold;
+    }
+    .schedule-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    /* --- 日付詳細・ゴマ編集モーダル --- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-content {
+      background: #fff;
+      width: 100%;
+      max-width: 680px;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    .modal-header h3 { margin: 0; font-size: 1.15rem; }
+    .close-btn {
+      background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;
+    }
+    .close-btn:hover { color: #1e293b; }
+
+    /* モーダル内タイムライン */
+    .timeline-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .slot-section {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      min-height: 90px;
+      transition: background 0.2s;
+    }
+    .slot-section.drag-over {
+      background: #e2e8f0;
+      border-color: var(--primary);
+    }
+    .slot-header {
+      font-weight: bold;
+      font-size: 0.92rem;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .slot-mae { background: var(--mae-bg); border-color: var(--mae-border); }
+    .slot-mae .slot-header { color: var(--mae-text); }
+    .slot-ato { background: var(--ato-bg); border-color: var(--ato-border); }
+    .slot-ato .slot-header { color: var(--ato-text); }
+    .slot-other { background: var(--other-bg); border-color: var(--other-border); }
+    .slot-other .slot-header { color: var(--other-text); }
+
+    .student-list-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 40px;
+      align-items: center;
+    }
+    .empty-hint {
+      color: #94a3b8;
+      font-size: 0.82rem;
+      font-style: italic;
+    }
+    .student-badge-draggable {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: grab;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      user-select: none;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+    .student-badge-draggable:active { cursor: grabbing; }
+    .slot-mae .student-badge-draggable { border-left: 4px solid var(--mae-text); }
+    .slot-ato .student-badge-draggable { border-left: 4px solid var(--ato-text); }
+    .slot-other .student-badge-draggable { border-left: 4px solid var(--other-text); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>塾・指導スケジュール＆生徒管理</h1>
+  <div class="nav-tabs">
+    <button id="tab-calendar" class="nav-btn active" onclick="switchPage('calendar')">📅 カレンダーページ</button>
+    <button id="tab-students" class="nav-btn" onclick="switchPage('students')">👤 生徒管理・個人ページ</button>
+    <button class="reset-btn" onclick="resetAllData()" title="データを全消去します">🔄 データリセット</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- ==================== 1. カレンダーページ ==================== -->
+  <div id="page-calendar" class="page active">
+    
+    <div class="card">
+      <h2 style="margin-top:0; font-size:1.05rem;">授業日程の自動一括登録</h2>
+      <div style="font-size: 0.83rem; color: #64748b; margin-bottom: 10px;">
+        例：「<code>11/2.3.4.5 後ゴマ 6前ゴマ</code>」「<code>11月 5,12,13,19,20,27全て後ゴマ</code>」などそのまま貼り付けられます。
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>生徒名（選択または新規入力）</label>
+          <input type="text" id="input-student" list="student-options" placeholder="例: 佐藤 太郎" autocomplete="off" />
+          <datalist id="student-options"></datalist>
+        </div>
+
+        <div class="form-group">
+          <label>日程・コマのメッセージ（混在も自動判定）</label>
+          <input type="text" id="input-message" placeholder="例: 11/2.3.4.5 後ゴマ 6前ゴマ" />
+        </div>
+
+        <div class="form-group">
+          <label>指定がない場合の基本枠</label>
+          <select id="default-slot">
+            <option value="mae">前ゴマ (17:30～19:30)</option>
+            <option value="ato">後ゴマ (19:30～21:30)</option>
+            <option value="sun1">日曜早い枠① (14:30～15:30)</option>
+            <option value="sun2">日曜早い枠② (15:30～17:30)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <button class="btn btn-primary" onclick="smartAddSchedules()">一括登録</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item badge-other">■ 日曜早い枠（14:30～ / 15:30～：オレンジ）</span>
+        <span class="legend-item badge-mae">■ 前ゴマ（17:30～19:30：赤）</span>
+        <span class="legend-item badge-ato">■ 後ゴマ（19:30～21:30：青）</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cal-header">
+        <button class="btn" onclick="changeMonth(-1)">◀ 前月</button>
+        <h2 id="cal-title" style="margin:0;">2026年 11月</h2>
+        <button class="btn" onclick="changeMonth(1)">次月 ▶</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- ==================== 2. 生徒管理・個人ページ ==================== -->
+  <div id="page-students" class="page">
+    <div class="student-layout">
+      <div class="card">
+        <h2 style="margin-top:0; font-size:1.05rem;">登録生徒一覧</h2>
+        <div style="display:flex; gap:6px; margin-bottom:12px;">
+          <input type="text" id="new-student-name" placeholder="新しい生徒名を追加" />
+          <button class="btn btn-primary btn-sm" onclick="addNewStudentOnly()">追加</button>
+        </div>
+        <ul class="student-list" id="student-list"></ul>
+      </div>
+
+      <div class="card" id="student-detail-card">
+        <div id="no-student-selected" style="color:#64748b; padding:20px 0;">
+          左のリストから生徒を選択すると、個人情報の編集と予定一覧が表示されます。
+        </div>
+
+        <div id="student-detail-content" style="display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:16px;">
+            <h2 id="detail-student-name" style="margin:0;">生徒名</h2>
+            <button class="btn btn-danger btn-sm" onclick="deleteCurrentStudent()">この生徒を削除</button>
+          </div>
+
+          <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:16px;">
+            <div class="form-group">
+              <label>学年</label>
+              <input type="text" id="detail-grade" placeholder="例: 中学3年" />
+            </div>
+            <div class="form-group">
+              <label>学校名</label>
+              <input type="text" id="detail-school" placeholder="例: 〇〇中学校" />
+            </div>
+            <div class="form-group">
+              <label>受講科目</label>
+              <input type="text" id="detail-subject" placeholder="例: 数学・英語" />
+            </div>
+            <div class="form-group">
+              <label>連絡先 / 保護者メモ</label>
+              <input type="text" id="detail-contact" placeholder="例: 090-XXXX-XXXX（母）" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>個人メモ・指導方針・目標など</label>
+            <textarea id="detail-memo" rows="4" placeholder="志望校、苦手な単元、宿題の進め方などを自由に記録できます"></textarea>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveStudentProfile()">個人情報を保存</button>
+
+          <hr style="margin:24px 0; border:none; border-top:1px solid var(--border);" />
+
+          <h3 style="font-size:1rem; margin-bottom:8px;">この生徒の登録済み日程</h3>
+          <div id="detail-schedules" class="schedule-tag-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 日付詳細・ゴマ編集モーダル ==================== -->
+<div class="modal-overlay" id="date-modal" onclick="closeDateModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="modal-date-title">日付の詳細・コマ編集</h3>
+      <button class="close-btn" onclick="closeDateModalDirect()">×</button>
+    </div>
+
+    <div style="display:flex; gap:8px; background:#f8fafc; padding:10px; border-radius:8px; margin-bottom:12px;">
+      <input type="text" id="modal-add-name" list="student-options" placeholder="この日に生徒を追加（選択または入力）" autocomplete="off" />
+      <select id="modal-add-slot" style="width:190px;"></select>
+      <button class="btn btn-primary btn-sm" onclick="modalAddStudent()">追加</button>
+    </div>
+
+    <div style="font-size:0.85rem; color:#64748b; margin-bottom:8px;">💡 生徒のカードを別のコマ枠へドラッグ＆ドロップして時間を変更できます。</div>
+
+    <div class="timeline-container" id="modal-timeline-body"></div>
+  </div>
+</div>
+
+<script>
+  let students = [];
+  let schedules = [];
+  let currentYear = 2026;
+  let currentMonth = 10; // 11月 (0-indexed)
+  let selectedStudentId = null;
+  let activeModalDateStr = null;
+
+  const SLOT_INFO = {
+    sun1: { label: '日曜早い枠① (14:30～15:30)', short: '14:30', badgeClass: 'badge-other', sectionClass: 'slot-other' },
+    sun2: { label: '日曜早い枠② (15:30～17:30)', short: '15:30', badgeClass: 'badge-other', sectionClass: 'slot-other' },
+    mae:  { label: '前ゴマ (17:30～19:30)', short: '前', badgeClass: 'badge-mae', sectionClass: 'slot-mae' },
+    ato:  { label: '後ゴマ (19:30～21:30)', short: '後', badgeClass: 'badge-ato', sectionClass: 'slot-ato' }
+  };
+
+  function loadData() {
+    try {
+      const savedSt = localStorage.getItem('juku_students');
+      const savedSc = localStorage.getItem('juku_schedules');
+      students = savedSt ? JSON.parse(savedSt) : [];
+      schedules = savedSc ? JSON.parse(savedSc) : [];
+      if (!Array.isArray(students)) students = [];
+      if (!Array.isArray(schedules)) schedules = [];
+    } catch (e) {
+      students = [];
+      schedules = [];
+    }
+  }
+
+  function saveData() {
+    try {
+      localStorage.setItem('juku_students', JSON.stringify(students));
+      localStorage.setItem('juku_schedules', JSON.stringify(schedules));
+    } catch (e) {
+      console.error('保存エラー:', e);
+    }
+    renderStudentOptions();
+  }
+
+  function resetAllData() {
+    if (!confirm('保存されているすべての生徒データとスケジュールをリセットしますか？')) return;
+    localStorage.removeItem('juku_students');
+    localStorage.removeItem('juku_schedules');
+    students = [];
+    schedules = [];
+    selectedStudentId = null;
+    renderCalendar();
+    renderStudentList();
+    alert('データをすべてリセットしました！');
+  }
+
+  function switchPage(page) {
+    document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+    if (page === 'calendar') {
+      document.getElementById('page-calendar').classList.add('active');
+      document.getElementById('tab-calendar').classList.add('active');
+      renderCalendar();
+    } else if (page === 'students') {
+      document.getElementById('page-students').classList.add('active');
+      document.getElementById('tab-students').classList.add('active');
+      renderStudentList();
+    }
+  }
+
+  function renderStudentOptions() {
+    const datalist = document.getElementById('student-options');
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    students.forEach(st => {
+      if (st && st.name) {
+        const opt = document.createElement('option');
+        opt.value = st.name;
+        datalist.appendChild(opt);
+      }
+    });
+  }
+
+  function parseSmartScheduleMessage(rawMsg, defaultSlot, baseYear, baseMonth1Indexed) {
+    let text = rawMsg
+      .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+      .replace(/／/g, '/')
+      .replace(/[．。、・]/g, ',');
+
+    let targetMonth = baseMonth1Indexed;
+    const monthPrefixRegex = /^[^\d]*(\d{1,2})\s*(?:月|\/)/;
+    const mMatch = text.match(monthPrefixRegex);
+    if (mMatch) {
+      const mVal = parseInt(mMatch[1], 10);
+      if (mVal >= 1 && mVal <= 12) {
+        targetMonth = mVal;
+        text = text.replace(monthPrefixRegex, ' ');
+      }
+    }
+
+    const tokenRegex = /(14:30|15:30|14時|15時半|早い枠|後ゴマ|後ごま|あとごま|前ゴマ|前ごま|まえごま)|(\d{1,2})/g;
+    let match;
+    let pendingDays = [];
+    const resolvedItems = [];
+
+    while ((match = tokenRegex.exec(text)) !== null) {
+      if (match[1]) {
+        const kw = match[1];
+        let detectedSlot = defaultSlot;
+        if (kw.includes('後') || kw.includes('あと')) detectedSlot = 'ato';
+        else if (kw.includes('前') || kw.includes('まえ')) detectedSlot = 'mae';
+        else if (kw.includes('14') || kw.includes('早い')) detectedSlot = 'sun1';
+        else if (kw.includes('15')) detectedSlot = 'sun2';
+
+        if (pendingDays.length > 0) {
+          pendingDays.forEach(d => {
+            resolvedItems.push({ day: d, slot: detectedSlot });
+          });
+          pendingDays = [];
+        }
+      } else if (match[2]) {
+        const d = parseInt(match[2], 10);
+        if (d >= 1 && d <= 31) {
+          pendingDays.push(d);
+        }
+      }
+    }
+
+    if (pendingDays.length > 0) {
+      pendingDays.forEach(d => {
+        resolvedItems.push({ day: d, slot: defaultSlot });
+      });
+    }
+
+    const results = [];
+    const seen = new Set();
+    resolvedItems.forEach(item => {
+      const mm = String(targetMonth).padStart(2, '0');
+      const dd = String(item.day).padStart(2, '0');
+      const dateStr = `${baseYear}-${mm}-${dd}`;
+      const key = `${dateStr}_${item.slot}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push({ dateStr, slot: item.slot, targetMonth });
+      }
+    });
+
+    return results;
+  }
+
+  function smartAddSchedules() {
+    const name = document.getElementById('input-student').value.trim();
+    const rawMsg = document.getElementById('input-message').value.trim();
+    const defaultSlot = document.getElementById('default-slot').value;
+
+    if (!name) { alert('生徒名を入力または選択してください。'); return; }
+    if (!rawMsg) { alert('日程・コマのメッセージを入力してください。'); return; }
+
+    const parsedList = parseSmartScheduleMessage(rawMsg, defaultSlot, currentYear, currentMonth + 1);
+
+    if (parsedList.length === 0) {
+      alert('日程を読み取れませんでした。「11/2.3.4.5 後ゴマ 6前ゴマ」やシールのように入力してください。');
+      return;
+    }
+
+    if (!students.some(s => s.name === name)) {
+      students.push({
+        id: 'st_' + Date.now() + Math.random(),
+        name: name, grade: '', school: '', subject: '', contact: '', memo: ''
+      });
+    }
+
+    parsedList.forEach((item, idx) => {
+      schedules.push({
+        id: 'ev_' + Date.now() + '_' + idx + Math.random(),
+        studentName: name,
+        dateStr: item.dateStr,
+        slot: item.slot,
+        comment: rawMsg
+      });
+    });
+
+    currentMonth = parsedList[0].targetMonth - 1;
+    saveData();
+    renderCalendar();
+
+    document.getElementById('input-message').value = '';
+
+    const summaryText = parsedList.map(it => {
+      const d = Number(it.dateStr.split('-')[2]);
+      const sLabel = SLOT_INFO[it.slot]?.short || '';
+      return `${d}日(${sLabel})`;
+    }).join(', ');
+
+    alert(`【一括登録完了】${name}さん\n${summaryText}`);
+  }
+
+  function deleteSchedule(id, e) {
+    if (e) e.stopPropagation();
+    schedules = schedules.filter(ev => ev.id !== id);
+    saveData();
+    renderCalendar();
+    if (activeModalDateStr) openDateModal(activeModalDateStr);
+    if (selectedStudentId) renderStudentDetail();
+  }
+
+  function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    else if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const titleEl = document.getElementById('cal-title');
+    const grid = document.getElementById('cal-grid');
+    if (!titleEl || !grid) return;
+
+    titleEl.textContent = `${currentYear}年 ${currentMonth + 1}月`;
+    grid.innerHTML = '';
+
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    dayNames.forEach((d, i) => {
+      const div = document.createElement('div');
+      div.className = 'cal-day-name' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+      div.textContent = d;
+      grid.appendChild(div);
+    });
+
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'cal-cell other-month';
+      grid.appendChild(empty);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateObj = new Date(currentYear, currentMonth, day);
+      const isSunday = dateObj.getDay() === 0;
+      const mm = String(currentMonth + 1).padStart(2, '0');
+      const dd = String(day).padStart(2, '0');
+      const dateStr = `${currentYear}-${mm}-${dd}`;
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell has-date-btn' + (isSunday ? ' sunday' : '');
+      cell.onclick = () => openDateModal(dateStr);
+
+      const header = document.createElement('div');
+      header.className = 'cal-date-num';
+      header.innerHTML = `<span>${day}</span> <span class="detail-hint-badge">編集 ▶</span>` + (isSunday ? `<span class="sun-tag">日曜4枠</span>` : '');
+      cell.appendChild(header);
+
+      const order = { sun1: 1, sun2: 2, mae: 3, ato: 4 };
+      const dayEvents = schedules
+        .filter(ev => ev && ev.dateStr === dateStr)
+        .sort((a, b) => (order[a.slot] || 9) - (order[b.slot] || 9));
+
+      dayEvents.forEach(ev => {
+        const info = SLOT_INFO[ev.slot] || SLOT_INFO.mae;
+        const chip = document.createElement('div');
+        chip.className = `event-chip ${info.badgeClass}`;
+        chip.title = `${info.label}：${ev.studentName}`;
+        chip.innerHTML = `
+          <span>[${info.short}] ${escapeHtml(ev.studentName)}</span>
+          <span class="del-ev" title="削除" onclick="deleteSchedule('${ev.id}', event)">×</span>
+        `;
+        cell.appendChild(chip);
+      });
+
+      grid.appendChild(cell);
+    }
+  }
+
+  function openDateModal(dateStr) {
+    activeModalDateStr = dateStr;
+    const [y, m, d] = dateStr.split('-');
+    const dateObj = new Date(dateStr);
+    const isSun = dateObj.getDay() === 0;
+
+    document.getElementById('modal-date-title').textContent = `${Number(m)}月${Number(d)}日${isSun ? ' (日)' : ''} の詳細・コマ編集`;
+
+    const slotsToShow = isSun ? ['sun1', 'sun2', 'mae', 'ato'] : ['mae', 'ato'];
+
+    const modalSlotSelect = document.getElementById('modal-add-slot');
+    modalSlotSelect.innerHTML = '';
+    slotsToShow.forEach(sk => {
+      const opt = document.createElement('option');
+      opt.value = sk;
+      opt.textContent = SLOT_INFO[sk].label;
+      modalSlotSelect.appendChild(opt);
+    });
+
+    const container = document.getElementById('modal-timeline-body');
+    container.innerHTML = '';
+
+    slotsToShow.forEach(slotKey => {
+      const info = SLOT_INFO[slotKey];
+      const section = document.createElement('div');
+      section.className = `slot-section ${info.sectionClass}`;
+      section.ondragover = (e) => { e.preventDefault(); section.classList.add('drag-over'); };
+      section.ondragleave = () => section.classList.remove('drag-over');
+      section.ondrop = (e) => {
+        e.preventDefault();
+        section.classList.remove('drag-over');
+        const evId = e.dataTransfer.getData('text/plain');
+        const targetEv = schedules.find(s => s.id === evId);
+        if (targetEv) {
+          targetEv.slot = slotKey;
+          saveData();
+          renderCalendar();
+          openDateModal(activeModalDateStr);
+        }
+      };
+
+      const dayEvents = schedules.filter(ev => ev.dateStr === dateStr && ev.slot === slotKey);
+
+      section.innerHTML = `
+        <div class="slot-header">
+          <span>${info.label}</span>
+          <span>${dayEvents.length}人</span>
+        </div>
+        <div class="student-list-box" id="modal-slot-${slotKey}"></div>
+      `;
+      container.appendChild(section);
+
+      const listBox = section.querySelector(`#modal-slot-${slotKey}`);
+      if (dayEvents.length === 0) {
+        listBox.innerHTML = '<span class="empty-hint">（この時間帯の生徒はいません）</span>';
+      } else {
+        dayEvents.forEach(ev => {
+          const badge = document.createElement('div');
+          badge.className = 'student-badge-draggable';
+          badge.draggable = true;
+          badge.innerHTML = `
+            <span>${escapeHtml(ev.studentName)}</span>
+            <span style="color:#94a3b8; cursor:pointer;" onclick="deleteSchedule('${ev.id}', event)">×</span>
+          `;
+          badge.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', ev.id);
+          });
+          listBox.appendChild(badge);
+        });
+      }
+    });
+
+    document.getElementById('date-modal').classList.add('open');
+  }
+
+  function closeDateModal(e) {
+    if (e.target.id === 'date-modal') closeDateModalDirect();
+  }
+
+  function closeDateModalDirect() {
+    document.getElementById('date-modal').classList.remove('open');
+    activeModalDateStr = null;
+  }
+
+  function modalAddStudent() {
+    if (!activeModalDateStr) return;
+    const input = document.getElementById('modal-add-name');
+    const slotSelect = document.getElementById('modal-add-slot').value;
+    const name = input.value.trim();
+
+    if (!name) { alert('生徒名を入力または選択してください。'); return; }
+
+    if (!students.some(s => s.name === name)) {
+      students.push({
+        id: 'st_' + Date.now() + Math.random(),
+        name: name, grade: '', school: '', subject: '', contact: '', memo: ''
+      });
+    }
+
+    schedules.push({
+      id: 'ev_' + Date.now() + Math.random(),
+      studentName: name,
+      dateStr: activeModalDateStr,
+      slot: slotSelect,
+      comment: ''
+    });
+
+    input.value = '';
+    saveData();
+    renderCalendar();
+    openDateModal(activeModalDateStr);
+  }
+
+  function renderStudentList() {
+    const listEl = document.getElementById('student-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    if (students.length === 0) {
+      listEl.innerHTML = '<li style="color:#64748b; font-size:0.9rem;">登録されている生徒はまだいません。</li>';
+      return;
+    }
+
+    students.forEach(st => {
+      const li = document.createElement('li');
+      li.className = 'student-list-item' + (st.id === selectedStudentId ? ' active' : '');
+      li.innerHTML = `
+        <span>${escapeHtml(st.name)} ${st.grade ? `<small style="color:#64748b;">(${escapeHtml(st.grade)})</small>` : ''}</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteStudentById('${st.id}', event)">削除</button>
+      `;
+      li.onclick = () => {
+        selectedStudentId = st.id;
+        renderStudentList();
+        renderStudentDetail();
+      };
+      listEl.appendChild(li);
+    });
+  }
+
+  function addNewStudentOnly() {
+    const input = document.getElementById('new-student-name');
+    const name = input.value.trim();
+    if (!name) return;
+    if (students.some(s => s.name === name)) {
+      alert('すでに同じ名前の生徒が登録されています。');
+      return;
+    }
+    const newSt = {
+      id: 'st_' + Date.now(),
+      name: name, grade: '', school: '', subject: '', contact: '', memo: ''
+    };
+    students.push(newSt);
+    selectedStudentId = newSt.id;
+    input.value = '';
+    saveData();
+    renderStudentList();
+    renderStudentDetail();
+  }
+
+  function deleteStudentById(id, e) {
+    if (e) e.stopPropagation();
+    const target = students.find(s => s.id === id);
+    if (!target) return;
+    if (!confirm(`生徒「${target.name}」を削除しますか？`)) return;
+
+    students = students.filter(s => s.id !== id);
+    if (selectedStudentId === id) {
+      selectedStudentId = null;
+      document.getElementById('student-detail-content').style.display = 'none';
+      document.getElementById('no-student-selected').style.display = 'block';
+    }
+    saveData();
+    renderStudentList();
+    renderCalendar();
+  }
+
+  function deleteCurrentStudent() {
+    if (selectedStudentId) deleteStudentById(selectedStudentId);
+  }
+
+  function renderStudentDetail() {
+    const st = students.find(s => s.id === selectedStudentId);
+    if (!st) return;
+
+    document.getElementById('no-student-selected').style.display = 'none';
+    document.getElementById('student-detail-content').style.display = 'block';
+
+    document.getElementById('detail-student-name').textContent = `${st.name} の個人ページ`;
+    document.getElementById('detail-grade').value = st.grade || '';
+    document.getElementById('detail-school').value = st.school || '';
+    document.getElementById('detail-subject').value = st.subject || '';
+    document.getElementById('detail-contact').value = st.contact || '';
+    document.getElementById('detail-memo').value = st.memo || '';
+
+    const schedContainer = document.getElementById('detail-schedules');
+    schedContainer.innerHTML = '';
+    const mySchedules = schedules
+      .filter(ev => ev.studentName === st.name)
+      .sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+
+    if (mySchedules.length === 0) {
+      schedContainer.innerHTML = '<span style="color:#64748b; font-size:0.9rem;">登録されている日程はありません。</span>';
+    } else {
+      mySchedules.forEach(ev => {
+        const info = SLOT_INFO[ev.slot] || SLOT_INFO.mae;
+        const [, m, d] = ev.dateStr.split('-');
+        const tag = document.createElement('div');
+        tag.className = `event-chip ${info.badgeClass}`;
+        tag.innerHTML = `
+          <span>${Number(m)}/${Number(d)} (${info.label})</span>
+          <span class="del-ev" onclick="deleteSchedule('${ev.id}', event)">×</span>
+        `;
+        schedContainer.appendChild(tag);
+      });
+    }
+  }
+
+  function saveStudentProfile() {
+    const st = students.find(s => s.id === selectedStudentId);
+    if (!st) return;
+    st.grade = document.getElementById('detail-grade').value.trim();
+    st.school = document.getElementById('detail-school').value.trim();
+    st.subject = document.getElementById('detail-subject').value.trim();
+    st.contact = document.getElementById('detail-contact').value.trim();
+    st.memo = document.getElementById('detail-memo').value.trim();
+    saveData();
+    renderStudentList();
+    alert('個人情報を保存しました！');
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    renderStudentOptions();
+    renderCalendar();
+  });
+</script>
+</body>
+</html>
